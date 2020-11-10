@@ -54,14 +54,33 @@ class SimpleCatalog {
    */
   TableMetadata *CreateTable(Transaction *txn, const std::string &table_name, const Schema &schema) {
     BUSTUB_ASSERT(names_.count(table_name) == 0, "Table names should be unique!");
-    return nullptr;
+    catalog_latch_.WLock();
+    table_oid_t table_oid = next_table_oid_++;
+    names_[table_name] = table_oid;
+    tables_[table_oid] = std::unique_ptr<TableMetadata>(new TableMetadata(schema, table_name, nullptr, table_oid));
+    catalog_latch_.WUnlock();
+    return tables_[table_oid].get();
   }
 
   /** @return table metadata by name */
-  TableMetadata *GetTable(const std::string &table_name) { return nullptr; }
+  TableMetadata *GetTable(const std::string &table_name) {
+    catalog_latch_.RLock();
+    auto tid_iter = names_.find(table_name);
+    if (tid_iter == names_.end()) {
+      catalog_latch_.RUnlock();
+      throw std::out_of_range("table name not exist");
+    }
+    catalog_latch_.RUnlock();
+    return GetTable(tid_iter->second);
+  }
 
   /** @return table metadata by oid */
-  TableMetadata *GetTable(table_oid_t table_oid) { return nullptr; }
+  TableMetadata *GetTable(table_oid_t table_oid) {
+    catalog_latch_.RLock();
+    auto table_iter = tables_.find(table_oid);
+    catalog_latch_.RUnlock();
+    return table_iter == tables_.end() ? nullptr: (table_iter->second).get();
+  }
 
  private:
   [[maybe_unused]] BufferPoolManager *bpm_;
@@ -74,5 +93,7 @@ class SimpleCatalog {
   std::unordered_map<std::string, table_oid_t> names_;
   /** The next table identifier to be used. */
   std::atomic<table_oid_t> next_table_oid_{0};
+
+  ReaderWriterLatch catalog_latch_;
 };
 }  // namespace bustub
