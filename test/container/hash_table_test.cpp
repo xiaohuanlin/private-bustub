@@ -137,7 +137,7 @@ static unsigned int count;
 pthread_mutex_t lock;
 
 void *count_v(void *v) {
-  LinearProbeHashTable<int, int, IntComparator> *ht = (LinearProbeHashTable<int, int, IntComparator> *)v;
+  auto *ht = reinterpret_cast<LinearProbeHashTable<int, int, IntComparator> *>(v);
   pthread_mutex_lock(&lock);
   int base_v = rand_r(&count);
   count++;

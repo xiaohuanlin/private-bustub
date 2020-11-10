@@ -26,12 +26,12 @@ template <typename KeyType, typename ValueType, typename KeyComparator>
 HASH_TABLE_TYPE::LinearProbeHashTable(const std::string &name, BufferPoolManager *buffer_pool_manager,
                                       const KeyComparator &comparator, size_t num_buckets,
                                       HashFunction<KeyType> hash_fn)
-    : buffer_pool_manager_(buffer_pool_manager), comparator_(comparator), hash_fn_(hash_fn), size_(0) {
+    : buffer_pool_manager_(buffer_pool_manager), comparator_(comparator), hash_fn_(std::move(hash_fn)), size_(0) {
   // todo: find table by name
   // todo: how to utilize transaction?
   Page *header = buffer_pool_manager_->NewPage(&header_page_id_);
 
-  HashTableHeaderPage *header_page = reinterpret_cast<HashTableHeaderPage *>(header->GetData());
+  auto header_page = reinterpret_cast<HashTableHeaderPage *>(header->GetData());
   header_page->SetPageId(header_page_id_);
   header_page->SetSize(BLOCK_ARRAY_SIZE);
   for (size_t i = 0; i < num_buckets; i++) {
@@ -68,8 +68,8 @@ bool HASH_TABLE_TYPE::GetValue(Transaction *transaction, const KeyType &key, std
       break;
     }
   }
-  freePage(reinterpret_cast<Page*>(block_page), header_page->GetBlockPageId(page_idx), false, true, false);
-  freePage(reinterpret_cast<Page*>(header_page), header_page_id_, false, true, false);
+  freePage(reinterpret_cast<Page *>(block_page), header_page->GetBlockPageId(page_idx), false, true, false);
+  freePage(reinterpret_cast<Page *>(header_page), header_page_id_, false, true, false);
   return !result->empty();
 }
 /*****************************************************************************
@@ -101,8 +101,8 @@ bool HASH_TABLE_TYPE::Insert(Transaction *transaction, const KeyType &key, const
   while (block_page->IsReadable(offset)) {
     gotoNextPosition(header_page, &block_page, &page_idx, &offset, true, false);
     if (page_idx == ori_page_idx && offset == ori_offset) {
-      freePage(reinterpret_cast<Page*>(block_page), header_page->GetBlockPageId(page_idx), true, false, false);
-      freePage(reinterpret_cast<Page*>(header_page), header_page_id_, false, true, false);
+      freePage(reinterpret_cast<Page *>(block_page), header_page->GetBlockPageId(page_idx), true, false, false);
+      freePage(reinterpret_cast<Page *>(header_page), header_page_id_, false, true, false);
       table_latch_.RUnlock();
 
       // all entries are full, so resize the table
@@ -114,8 +114,8 @@ bool HASH_TABLE_TYPE::Insert(Transaction *transaction, const KeyType &key, const
   block_page->Insert(offset, key, value);
   size_++;
 
-  freePage(reinterpret_cast<Page*>(block_page), header_page->GetBlockPageId(page_idx), true, false, true);
-  freePage(reinterpret_cast<Page*>(header_page), header_page_id_, false, true, false);
+  freePage(reinterpret_cast<Page *>(block_page), header_page->GetBlockPageId(page_idx), true, false, true);
+  freePage(reinterpret_cast<Page *>(header_page), header_page_id_, false, true, false);
   table_latch_.RUnlock();
   return true;
 }
@@ -153,8 +153,8 @@ bool HASH_TABLE_TYPE::Remove(Transaction *transaction, const KeyType &key, const
     }
   }
 
-  freePage(reinterpret_cast<Page*>(block_page), header_page->GetBlockPageId(page_idx), true, false, true);
-  freePage(reinterpret_cast<Page*>(header_page), header_page_id_, false, true, false);
+  freePage(reinterpret_cast<Page *>(block_page), header_page->GetBlockPageId(page_idx), true, false, true);
+  freePage(reinterpret_cast<Page *>(header_page), header_page_id_, false, true, false);
 
   table_latch_.RUnlock();
   return removed;
@@ -168,7 +168,7 @@ void HASH_TABLE_TYPE::Resize(size_t initial_size) {
   table_latch_.WLock();
   HashTableHeaderPage *header_page = loadHeaderPage(false, true);
   if (header_page->NumBlocks() == 2 * initial_size) {
-    freePage(reinterpret_cast<Page*>(header_page), header_page_id_, false, true, false);
+    freePage(reinterpret_cast<Page *>(header_page), header_page_id_, false, true, false);
     table_latch_.WUnlock();
     return;
   }
@@ -177,8 +177,7 @@ void HASH_TABLE_TYPE::Resize(size_t initial_size) {
   slot_offset_t offset = 0;
 
   auto block_page = loadBlockPage(header_page, page_idx, false, true);
-  LinearProbeHashTable *new_table =
-      new LinearProbeHashTable("tmp", buffer_pool_manager_, comparator_, 2 * initial_size, hash_fn_);
+  auto new_table = new LinearProbeHashTable("tmp", buffer_pool_manager_, comparator_, 2 * initial_size, hash_fn_);
   do {
     if (block_page->IsReadable(offset)) {
       new_table->Insert(nullptr, block_page->KeyAt(offset), block_page->ValueAt(offset));
@@ -186,7 +185,7 @@ void HASH_TABLE_TYPE::Resize(size_t initial_size) {
     gotoNextPosition(header_page, &block_page, &page_idx, &offset, false, true);
   } while (!(page_idx == 0 && offset == 0));
 
-  freePage(reinterpret_cast<Page*>(header_page), header_page_id_, false, true, false);
+  freePage(reinterpret_cast<Page *>(header_page), header_page_id_, false, true, false);
   header_page_id_ = new_table->header_page_id_;
   delete new_table;
   table_latch_.WUnlock();
@@ -195,7 +194,7 @@ void HASH_TABLE_TYPE::Resize(size_t initial_size) {
 template <typename KeyType, typename ValueType, typename KeyComparator>
 HashTableHeaderPage *HASH_TABLE_TYPE::loadHeaderPage(bool wlock, bool rlock) {
   Page *header = buffer_pool_manager_->FetchPage(header_page_id_);
-  if (!header) {
+  if (header == nullptr) {
     return nullptr;
   }
 
@@ -204,7 +203,7 @@ HashTableHeaderPage *HASH_TABLE_TYPE::loadHeaderPage(bool wlock, bool rlock) {
   } else if (wlock) {
     header->WLatch();
   }
-  HashTableHeaderPage *header_page = reinterpret_cast<HashTableHeaderPage *>(header->GetData());
+  auto header_page = reinterpret_cast<HashTableHeaderPage *>(header->GetData());
   return header_page;
 }
 
@@ -214,7 +213,7 @@ HashTableBlockPage<KeyType, ValueType, KeyComparator> *HASH_TABLE_TYPE::loadBloc
                                                                                       bool rlock) {
   page_id_t block_page_id = header_page->GetBlockPageId(page_idx);
   Page *block = buffer_pool_manager_->FetchPage(block_page_id);
-  if (!block) {
+  if (block == nullptr) {
     return nullptr;
   }
   if (rlock) {
@@ -245,12 +244,12 @@ void HASH_TABLE_TYPE::gotoNextPosition(HashTableHeaderPage *header_page,
 
   if (*offset_p >= header_page->GetSize()) {
     // finish this page, and turn into another page
-    freePage(reinterpret_cast<Page*>(*block_page_p), header_page->GetBlockPageId(*page_id_p), wlock, rlock, false);
+    freePage(reinterpret_cast<Page *>(*block_page_p), header_page->GetBlockPageId(*page_id_p), wlock, rlock, false);
     ++(*page_id_p);
     *offset_p = 0;
 
     // search to end, rewind to start page
-    if (header_page->NumBlocks() == (size_t)(*page_id_p)) {
+    if (header_page->NumBlocks() == static_cast<size_t>(*page_id_p)) {
       *page_id_p = 0;
     }
     // find next block to search the result

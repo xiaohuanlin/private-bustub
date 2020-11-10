@@ -16,7 +16,7 @@ namespace bustub {
 
 ClockReplacer::ClockReplacer(size_t num_pages) : total(num_pages) { current = units.begin(); }
 
-ClockReplacer::~ClockReplacer() {}
+ClockReplacer::~ClockReplacer() = default;
 
 bool ClockReplacer::Victim(frame_id_t *frame_id) {
   // Starting from the current position of clock hand,
@@ -38,10 +38,9 @@ bool ClockReplacer::Victim(frame_id_t *frame_id) {
       *frame_id = (*current)->frame_id;
       units.erase(current++);
       return true;
-    } else {
-      (*current)->ref_count = true;
-      current++;
     }
+    (*current)->ref_count = true;
+    current++;
   }
 }
 
@@ -52,7 +51,7 @@ void ClockReplacer::Pin(frame_id_t frame_id) {
   std::lock_guard<std::mutex> lk_guard(unit_lock);
 
   auto item = std::find_if(units.cbegin(), units.cend(),
-                           [=](const std::shared_ptr<Unit> u) { return u->frame_id == frame_id; });
+                           [=](const std::shared_ptr<Unit> &u) { return u->frame_id == frame_id; });
 
   if (item != units.cend()) {
     if (current == item) {
@@ -74,10 +73,10 @@ void ClockReplacer::Unpin(frame_id_t frame_id) {
   }
   std::lock_guard<std::mutex> lk_guard(unit_lock);
   auto item = std::find_if(units.cbegin(), units.cend(),
-                           [=](const std::shared_ptr<Unit> u) { return u->frame_id == frame_id; });
+                           [=](const std::shared_ptr<Unit> &u) { return u->frame_id == frame_id; });
 
   if (item == units.cend()) {
-    units.insert(current, std::shared_ptr<Unit>(new Unit(frame_id, false)));
+    units.insert(current, std::make_shared<Unit>(frame_id, false));
   }
 }
 

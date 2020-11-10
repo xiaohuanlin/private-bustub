@@ -104,9 +104,10 @@ class LinearProbeHashTable : public HashTable<KeyType, ValueType, KeyComparator>
   HashTableHeaderPage *loadHeaderPage(bool wlock, bool rlock);
   HashTableBlockPage<KeyType, ValueType, KeyComparator> *loadBlockPage(HashTableHeaderPage *header_page,
                                                                        size_t page_idx, bool wlock, bool rlock);
-  void freePage(Page *page, page_id_t page_id, bool rlock, bool wlock, bool dirty);
-  void gotoNextPosition(HashTableHeaderPage *header, HashTableBlockPage<KeyType, ValueType, KeyComparator> **block,
-                        page_id_t *page_idx, slot_offset_t *offset, bool wlock, bool rlock);
+  void freePage(Page *page, page_id_t page_id, bool wlock, bool rlock, bool dirty);
+  void gotoNextPosition(HashTableHeaderPage *header_page,
+                        HashTableBlockPage<KeyType, ValueType, KeyComparator> **block_page_p, page_id_t *page_id_p,
+                        slot_offset_t *offset_p, bool wlock, bool rlock);
 };
 
 }  // namespace bustub
