@@ -84,7 +84,6 @@ bool BufferPoolManager::UnpinPageImpl(page_id_t page_id, bool is_dirty) {
   std::lock_guard<std::mutex> lg(latch_);
   for (size_t i = 0; i < pool_size_; ++i) {
     if (pages_[i].GetPageId() == page_id) {
-
       pages_[i].is_dirty_ = is_dirty;
       pages_[i].pin_count_--;
       if (pages_[i].GetPinCount() <= 0) {

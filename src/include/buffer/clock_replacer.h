@@ -52,7 +52,7 @@ class ClockReplacer : public Replacer {
     frame_id_t frame_id;
     bool ref_count;
 
-    Unit(frame_id_t frame_id_ = 0, bool ref_count_ = false) : frame_id(frame_id_), ref_count(ref_count_){}
+    explicit Unit(frame_id_t frame_id_ = 0, bool ref_count_ = false) : frame_id(frame_id_), ref_count(ref_count_) {}
   };
 
   size_t total;

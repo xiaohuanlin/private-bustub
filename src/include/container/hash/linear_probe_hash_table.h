@@ -97,6 +97,16 @@ class LinearProbeHashTable : public HashTable<KeyType, ValueType, KeyComparator>
 
   // Hash function
   HashFunction<KeyType> hash_fn_;
+
+  // current table size
+  std::atomic<size_t> size_;
+
+  HashTableHeaderPage *loadHeaderPage(bool wlock, bool rlock);
+  HashTableBlockPage<KeyType, ValueType, KeyComparator> *loadBlockPage(HashTableHeaderPage *header_page,
+                                                                       size_t page_idx, bool wlock, bool rlock);
+  void freePage(Page *page, page_id_t page_id, bool rlock, bool wlock, bool dirty);
+  void gotoNextPosition(HashTableHeaderPage *header, HashTableBlockPage<KeyType, ValueType, KeyComparator> **block,
+                        page_id_t *page_idx, slot_offset_t *offset, bool wlock, bool rlock);
 };
 
 }  // namespace bustub

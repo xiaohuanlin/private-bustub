@@ -14,9 +14,7 @@
 
 namespace bustub {
 
-ClockReplacer::ClockReplacer(size_t num_pages) : total(num_pages) {
-  current = units.begin();
-}
+ClockReplacer::ClockReplacer(size_t num_pages) : total(num_pages) { current = units.begin(); }
 
 ClockReplacer::~ClockReplacer() {}
 
@@ -53,9 +51,9 @@ void ClockReplacer::Pin(frame_id_t frame_id) {
   // from the ClockReplacer.
   std::lock_guard<std::mutex> lk_guard(unit_lock);
 
-  auto item =
-      std::find_if(units.cbegin(), units.cend(), [=](const std::shared_ptr<Unit> u) { return u->frame_id == frame_id; });
-      
+  auto item = std::find_if(units.cbegin(), units.cend(),
+                           [=](const std::shared_ptr<Unit> u) { return u->frame_id == frame_id; });
+
   if (item != units.cend()) {
     if (current == item) {
       current++;
@@ -75,8 +73,8 @@ void ClockReplacer::Unpin(frame_id_t frame_id) {
     return;
   }
   std::lock_guard<std::mutex> lk_guard(unit_lock);
-  auto item =
-      std::find_if(units.cbegin(), units.cend(), [=](const std::shared_ptr<Unit> u) { return u->frame_id == frame_id; });
+  auto item = std::find_if(units.cbegin(), units.cend(),
+                           [=](const std::shared_ptr<Unit> u) { return u->frame_id == frame_id; });
 
   if (item == units.cend()) {
     units.insert(current, std::shared_ptr<Unit>(new Unit(frame_id, false)));
