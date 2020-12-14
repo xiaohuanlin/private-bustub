@@ -37,14 +37,16 @@ void AggregationExecutor::Init() {
 
 bool AggregationExecutor::Next(Tuple *tuple) {
     auto predicate = plan_->GetHaving();
+    AggregateKey ak_k;
+    AggregateValue ak_v;
 
     do {
         if (aht_iterator_ == aht_.End()) {
             return false;
         }
 
-        auto ak_k = aht_iterator_.Key();
-        auto ak_v = aht_iterator_.Val();
+        ak_k = aht_iterator_.Key();
+        ak_v = aht_iterator_.Val();
 
         // create tuple according to output schema
         std::vector<Value> res;
@@ -60,7 +62,7 @@ bool AggregationExecutor::Next(Tuple *tuple) {
         if (!predicate) {
             return true;
         }
-    } while (!predicate->Evaluate(tuple, plan_->OutputSchema()).GetAs<bool>());
+    } while (!predicate->EvaluateAggregate(ak_k.group_bys_, ak_v.aggregates_).GetAs<bool>());
     return true;
 }
 

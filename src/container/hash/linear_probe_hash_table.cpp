@@ -272,5 +272,6 @@ template class LinearProbeHashTable<GenericKey<8>, RID, GenericComparator<8>>;
 template class LinearProbeHashTable<GenericKey<16>, RID, GenericComparator<16>>;
 template class LinearProbeHashTable<GenericKey<32>, RID, GenericComparator<32>>;
 template class LinearProbeHashTable<GenericKey<64>, RID, GenericComparator<64>>;
+template class LinearProbeHashTable<hash_t, TmpTuple, HashComparator>;
 
 }  // namespace bustub

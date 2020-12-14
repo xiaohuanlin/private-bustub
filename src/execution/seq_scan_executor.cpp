@@ -31,11 +31,10 @@ bool SeqScanExecutor::Next(Tuple *tuple) {
 
         const Schema *schema = plan_->OutputSchema();
         if (schema) {
-            auto ori_tuple = *table_iter_;
             std::vector<Value> res;
             for (auto &col: schema->GetColumns()) {
-                auto col_idx = table_meta_->schema_.GetColIdx(col.GetName());
-                res.push_back(ori_tuple->GetValue(&table_meta_->schema_, col_idx));
+                auto value = col.GetExpr()->Evaluate(&(*(*table_iter_)), schema);
+                res.push_back(value);
             }
             *tuple = Tuple(res, schema);
         } else {

@@ -17,9 +17,11 @@
 #include <vector>
 
 #include "buffer/buffer_pool_manager.h"
+#include "common/util/hash_util.h"
 #include "concurrency/transaction.h"
 #include "container/hash/hash_function.h"
 #include "container/hash/hash_table.h"
+#include "storage/index/hash_comparator.h"
 #include "storage/page/hash_table_block_page.h"
 #include "storage/page/hash_table_header_page.h"
 #include "storage/page/hash_table_page_defs.h"
