@@ -27,7 +27,7 @@
 namespace bustub {
 
 // NOLINTNEXTLINE
-TEST(RecoveryTest, DISABLED_RedoTest) {
+TEST(RecoveryTest, RedoTest) {
   remove("test.db");
   remove("test.log");
 
@@ -122,7 +122,7 @@ TEST(RecoveryTest, DISABLED_RedoTest) {
 }
 
 // NOLINTNEXTLINE
-TEST(RecoveryTest, DISABLED_UndoTest) {
+TEST(RecoveryTest, UndoTest) {
   remove("test.db");
   remove("test.log");
   BustubInstance *bustub_instance = new BustubInstance("test.db");
@@ -205,8 +205,125 @@ TEST(RecoveryTest, DISABLED_UndoTest) {
   remove("test.log");
 }
 
+TEST(RecoveryTest, MultiTransactionTest) {
+  remove("test.db");
+  remove("test.log");
+  BustubInstance *bustub_instance = new BustubInstance("test.db");
+
+  ASSERT_FALSE(enable_logging);
+  LOG_INFO("Skip system recovering...");
+
+  bustub_instance->log_manager_->RunFlushThread();
+  ASSERT_TRUE(enable_logging);
+  LOG_INFO("System logging thread running...");
+
+  LOG_INFO("Create a test table");
+  Transaction *txn1 = bustub_instance->transaction_manager_->Begin();
+  Transaction *txn2 = bustub_instance->transaction_manager_->Begin();
+  Transaction *txn3 = bustub_instance->transaction_manager_->Begin();
+  auto *test_table1 = new TableHeap(bustub_instance->buffer_pool_manager_, bustub_instance->lock_manager_,
+                                   bustub_instance->log_manager_, txn1);
+  page_id_t first_page_id1 = test_table1->GetFirstPageId();
+  auto *test_table2 = new TableHeap(bustub_instance->buffer_pool_manager_, bustub_instance->lock_manager_,
+                                   bustub_instance->log_manager_, txn2);
+  page_id_t first_page_id2 = test_table2->GetFirstPageId();
+  auto *test_table3 = new TableHeap(bustub_instance->buffer_pool_manager_, bustub_instance->lock_manager_,
+                                   bustub_instance->log_manager_, txn3);
+  page_id_t first_page_id3 = test_table3->GetFirstPageId();
+
+  Column col1{"a", TypeId::VARCHAR, 20};
+  Column col2{"b", TypeId::SMALLINT};
+  std::vector<Column> cols{col1, col2};
+  Schema schema{cols};
+  RID rid1, rid2, rid3;
+  const Tuple tuple1 = ConstructTuple(&schema);
+  const Tuple tuple2 = ConstructTuple(&schema);
+  const Tuple tuple3 = ConstructTuple(&schema);
+
+  auto val1_0 = tuple1.GetValue(&schema, 0);
+  auto val1_1 = tuple1.GetValue(&schema, 1);
+  auto val2_0 = tuple2.GetValue(&schema, 0);
+  auto val2_1 = tuple2.GetValue(&schema, 1);
+  auto val3_0 = tuple3.GetValue(&schema, 0);
+  auto val3_1 = tuple3.GetValue(&schema, 1);
+
+  // t1, t2, t3: insert one row
+  ASSERT_TRUE(test_table1->InsertTuple(tuple1, &rid1, txn1));
+  ASSERT_TRUE(test_table2->InsertTuple(tuple2, &rid2, txn2));
+  ASSERT_TRUE(test_table3->InsertTuple(tuple3, &rid3, txn3));
+
+  LOG_INFO("Table page content is written to disk");
+  bustub_instance->buffer_pool_manager_->FlushAllPages();
+
+  // t2 update
+  const Tuple new_tuple2 = ConstructTuple(&schema);
+  ASSERT_TRUE(test_table2->UpdateTuple(new_tuple2, rid2, txn2));
+  auto new_val2_0 = new_tuple2.GetValue(&schema, 0);
+  auto new_val2_1 = new_tuple2.GetValue(&schema, 1);
+
+  // t3 delete
+  ASSERT_TRUE(test_table3->MarkDelete(rid3, txn3));
+
+  // t2, t3 commit
+  bustub_instance->transaction_manager_->Commit(txn2);
+  bustub_instance->transaction_manager_->Commit(txn3);
+
+  delete txn1;
+  delete txn2;
+  delete txn3;
+  delete test_table1;
+  delete test_table2;
+  delete test_table3;
+
+  LOG_INFO("System crash before commit");
+  delete bustub_instance;
+
+  LOG_INFO("System restarted..");
+  bustub_instance = new BustubInstance("test.db");
+
+  LOG_INFO("Recovery started..");
+  auto *log_recovery = new LogRecovery(bustub_instance->disk_manager_, bustub_instance->buffer_pool_manager_);
+
+  ASSERT_FALSE(enable_logging);
+
+  log_recovery->Redo();
+  LOG_INFO("Redo underway...");
+  log_recovery->Undo();
+  LOG_INFO("Undo underway...");
+
+  LOG_INFO("Check if txns are all right");
+  Transaction *txn = bustub_instance->transaction_manager_->Begin();
+  test_table1 = new TableHeap(bustub_instance->buffer_pool_manager_, bustub_instance->lock_manager_,
+                                   bustub_instance->log_manager_, first_page_id1);
+  test_table2 = new TableHeap(bustub_instance->buffer_pool_manager_, bustub_instance->lock_manager_,
+                                   bustub_instance->log_manager_, first_page_id2);
+  test_table3 = new TableHeap(bustub_instance->buffer_pool_manager_, bustub_instance->lock_manager_,
+                                   bustub_instance->log_manager_, first_page_id3);
+  Tuple tmp_tuple;
+  // t1 no inserted row
+  ASSERT_FALSE(test_table1->GetTuple(rid1, &tmp_tuple, txn));
+  // t2 has a row with new data
+  ASSERT_TRUE(test_table2->GetTuple(rid2, &tmp_tuple, txn));
+  ASSERT_EQ(tmp_tuple.GetValue(&schema, 1).CompareEquals(new_val2_1), CmpBool::CmpTrue);
+  ASSERT_EQ(tmp_tuple.GetValue(&schema, 0).CompareEquals(new_val2_0), CmpBool::CmpTrue);
+  // t3 has a row with first commit
+  ASSERT_FALSE(test_table3->GetTuple(rid3, &tmp_tuple, txn));
+  bustub_instance->transaction_manager_->Commit(txn);
+
+  delete txn;
+  delete test_table1;
+  delete test_table2;
+  delete test_table3;
+  delete log_recovery;
+
+  delete bustub_instance;
+  LOG_INFO("Tearing down the system..");
+  remove("test.db");
+  remove("test.log");
+}
+
 // NOLINTNEXTLINE
-TEST(RecoveryTest, DISABLED_CheckpointTest) {
+TEST(RecoveryTest, CheckpointTest) {
   remove("test.db");
   remove("test.log");
   BustubInstance *bustub_instance = new BustubInstance("test.db");

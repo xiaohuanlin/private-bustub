@@ -85,7 +85,12 @@ class TransactionManager {
    */
   void ReleaseLocks(Transaction *txn) {
     std::unordered_set<RID> lock_set;
+    std::cout << "start release lock" << std::endl;
+    std::cout << "lock count " << txn->GetExclusiveLockSet()->size() << std::endl;
+    int count = 0;
     for (auto item : *txn->GetExclusiveLockSet()) {
+      std::cout << "count: " << count++ << std::endl;
+      std::cout << "ptr: " << txn->GetExclusiveLockSet() << std::endl;
       lock_set.emplace(item);
     }
     for (auto item : *txn->GetSharedLockSet()) {

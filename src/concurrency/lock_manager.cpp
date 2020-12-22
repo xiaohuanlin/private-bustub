@@ -23,6 +23,7 @@ bool LockManager::LockShared(Transaction *txn, const RID &rid) {
 }
 
 bool LockManager::LockExclusive(Transaction *txn, const RID &rid) {
+  std::cout << "set lock exclude to rid: " << rid.ToString() << std::endl;
   txn->GetExclusiveLockSet()->emplace(rid);
   return true;
 }

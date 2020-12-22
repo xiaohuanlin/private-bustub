@@ -19,6 +19,7 @@
 
 #include "recovery/log_record.h"
 #include "storage/disk/disk_manager.h"
+#include "storage/page/page.h"
 
 namespace bustub {
 
@@ -28,6 +29,7 @@ namespace bustub {
  */
 class LogManager {
  public:
+  const lsn_t INVALID_LSN = -1;
   explicit LogManager(DiskManager *disk_manager)
       : next_lsn_(0), persistent_lsn_(INVALID_LSN), disk_manager_(disk_manager) {
     log_buffer_ = new char[LOG_BUFFER_SIZE];
@@ -39,10 +41,17 @@ class LogManager {
     delete[] flush_buffer_;
     log_buffer_ = nullptr;
     flush_buffer_ = nullptr;
+    // if (promise_) {
+    //   std::cout << "free promise_" << std::endl;
+    //   delete promise_;
+    //   promise_ = nullptr;
+    //   std::cout << "free promise_ ok" << std::endl;
+    // }
   }
 
   void RunFlushThread();
   void StopFlushThread();
+  std::future<void> SyncFlush(bool wait_until_flush = false, Page *flush_page = nullptr);
 
   lsn_t AppendLogRecord(LogRecord *log_record);
 
@@ -53,6 +62,9 @@ class LogManager {
 
  private:
   // TODO(students): you may add your own member variables
+  std::atomic<uint32_t> offset_ = 0;
+  std::atomic<bool> future_done_ = true;
+  std::atomic<bool> swap_done_ = false;
 
   /** The atomic counter which records the next log sequence number. */
   std::atomic<lsn_t> next_lsn_;
@@ -64,9 +76,11 @@ class LogManager {
 
   std::mutex latch_;
 
+  std::atomic<bool> thread_run_forever_ = true;
   std::thread *flush_thread_ __attribute__((__unused__));
 
   std::condition_variable cv_;
+  std::promise<void> *promise_ = nullptr;
 
   DiskManager *disk_manager_ __attribute__((__unused__));
 };

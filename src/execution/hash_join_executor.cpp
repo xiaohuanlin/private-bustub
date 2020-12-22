@@ -50,9 +50,7 @@ void HashJoinExecutor::Init() {
         }
 
         auto hash_key = HashValues(&tuple, left_->GetOutputSchema(), plan_->GetLeftKeys());
-        std::cout << hash_key << std::endl;
         jht_.Insert(trans, hash_key, tmp_tuple);
-        std::cout << "insert tmp: " << tmp_tuple.GetPageId() << " " << tmp_tuple.GetOffset() << " tuple " << tuple.ToString(left_->GetOutputSchema()) << std::endl;
     }
 
     right_->Init();
@@ -93,13 +91,14 @@ bool HashJoinExecutor::Next(Tuple *tuple) {
                 return false;
             }
             htk_idx_ += 1;
+            // we should keep the tuples empty
+            tuples.clear();
             jht_.GetValue(trans, htk_, &tuples);
         }
 
         auto tmp_tuple = tuples[htk_idx_];
         auto cur_page = reinterpret_cast<TmpTuplePage*>(bfm->FetchPage(tmp_tuple.GetPageId()));
         cur_page->Get(&tmp_tuple, &left_tuple);
-        std::cout << "get tmp: " << tmp_tuple.GetPageId() << " " << tmp_tuple.GetOffset() << " tuple " << left_tuple.ToString(left_->GetOutputSchema()) << std::endl;
 
         // generate output
         const Schema *schema = plan_->OutputSchema();
@@ -111,7 +110,6 @@ bool HashJoinExecutor::Next(Tuple *tuple) {
         }
 
         *tuple = Tuple(res, plan_->OutputSchema());
-        std::cout << "general " << tuple->ToString(plan_->OutputSchema()) << std::endl;
     } while (!predicate->EvaluateJoin(&left_tuple, left_->GetOutputSchema(), &right_tuple_, right_->GetOutputSchema()).GetAs<bool>());
     return true;
 }
