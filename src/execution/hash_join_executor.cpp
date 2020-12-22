@@ -93,6 +93,8 @@ bool HashJoinExecutor::Next(Tuple *tuple) {
                 return false;
             }
             htk_idx_ += 1;
+            // we should keep the tuples empty
+            tuples.clear();
             jht_.GetValue(trans, htk_, &tuples);
         }
 
