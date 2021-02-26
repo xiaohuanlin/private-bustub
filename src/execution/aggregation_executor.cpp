@@ -18,14 +18,52 @@ namespace bustub {
 
 AggregationExecutor::AggregationExecutor(ExecutorContext *exec_ctx, const AggregationPlanNode *plan,
                                          std::unique_ptr<AbstractExecutor> &&child)
-    : AbstractExecutor(exec_ctx) {}
+    : AbstractExecutor(exec_ctx), plan_(plan), child_(std::move(child)), aht_(SimpleAggregationHashTable(plan->GetAggregates(), plan->GetAggregateTypes())), aht_iterator_(aht_.Begin()) {
+    }
 
 const AbstractExecutor *AggregationExecutor::GetChildExecutor() const { return child_.get(); }
 
 const Schema *AggregationExecutor::GetOutputSchema() { return plan_->OutputSchema(); }
 
-void AggregationExecutor::Init() {}
+void AggregationExecutor::Init() {
+    Tuple tuple;
+    while (child_->Next(&tuple)) {
+        auto ag_k = MakeKey(&tuple);
+        auto ag_v = MakeVal(&tuple);
+        aht_.InsertCombine(ag_k, ag_v);
+    }
+    aht_iterator_ = aht_.Begin();
+}
 
-bool AggregationExecutor::Next(Tuple *tuple) { return false; }
+bool AggregationExecutor::Next(Tuple *tuple) {
+    auto predicate = plan_->GetHaving();
+    AggregateKey ak_k;
+    AggregateValue ak_v;
+
+    do {
+        if (aht_iterator_ == aht_.End()) {
+            return false;
+        }
+
+        ak_k = aht_iterator_.Key();
+        ak_v = aht_iterator_.Val();
+
+        // create tuple according to output schema
+        std::vector<Value> res;
+        const Schema *schema = plan_->OutputSchema();
+        for (auto &col: schema->GetColumns()) {
+            auto value = col.GetExpr()->EvaluateAggregate(ak_k.group_bys_, ak_v.aggregates_);
+            res.push_back(value);
+        }
+
+        *tuple = Tuple(res, plan_->OutputSchema());
+
+        ++aht_iterator_;
+        if (!predicate) {
+            return true;
+        }
+    } while (!predicate->EvaluateAggregate(ak_k.group_bys_, ak_v.aggregates_).GetAs<bool>());
+    return true;
+}
 
 }  // namespace bustub

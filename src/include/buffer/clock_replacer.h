@@ -12,7 +12,9 @@
 
 #pragma once
 
+#include <algorithm>
 #include <list>
+#include <memory>
 #include <mutex>  // NOLINT
 #include <vector>
 
@@ -46,7 +48,17 @@ class ClockReplacer : public Replacer {
   size_t Size() override;
 
  private:
-  // TODO(student): implement me!
+  struct Unit {
+    frame_id_t frame_id;
+    bool ref_count;
+
+    explicit Unit(frame_id_t frame_id_ = 0, bool ref_count_ = false) : frame_id(frame_id_), ref_count(ref_count_) {}
+  };
+
+  size_t total;
+  std::mutex unit_lock;
+  std::list<std::shared_ptr<Unit>> units;
+  std::list<std::shared_ptr<Unit>>::iterator current;
 };
 
 }  // namespace bustub

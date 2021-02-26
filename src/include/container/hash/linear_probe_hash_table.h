@@ -17,9 +17,11 @@
 #include <vector>
 
 #include "buffer/buffer_pool_manager.h"
+#include "common/util/hash_util.h"
 #include "concurrency/transaction.h"
 #include "container/hash/hash_function.h"
 #include "container/hash/hash_table.h"
+#include "storage/index/hash_comparator.h"
 #include "storage/page/hash_table_block_page.h"
 #include "storage/page/hash_table_header_page.h"
 #include "storage/page/hash_table_page_defs.h"
@@ -97,6 +99,17 @@ class LinearProbeHashTable : public HashTable<KeyType, ValueType, KeyComparator>
 
   // Hash function
   HashFunction<KeyType> hash_fn_;
+
+  // current table size
+  std::atomic<size_t> size_;
+
+  HashTableHeaderPage *loadHeaderPage(bool wlock, bool rlock);
+  HashTableBlockPage<KeyType, ValueType, KeyComparator> *loadBlockPage(HashTableHeaderPage *header_page,
+                                                                       size_t page_idx, bool wlock, bool rlock);
+  void freePage(Page *page, page_id_t page_id, bool wlock, bool rlock, bool dirty);
+  void gotoNextPosition(HashTableHeaderPage *header_page,
+                        HashTableBlockPage<KeyType, ValueType, KeyComparator> **block_page_p, page_id_t *page_id_p,
+                        slot_offset_t *offset_p, bool wlock, bool rlock);
 };
 
 }  // namespace bustub

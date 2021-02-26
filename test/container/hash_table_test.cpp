@@ -21,7 +21,7 @@
 namespace bustub {
 
 // NOLINTNEXTLINE
-TEST(HashTableTest, DISABLED_SampleTest) {
+TEST(HashTableTest, SampleTest) {
   auto *disk_manager = new DiskManager("test.db");
   auto *bpm = new BufferPoolManager(50, disk_manager);
 
@@ -104,4 +104,83 @@ TEST(HashTableTest, DISABLED_SampleTest) {
   delete bpm;
 }
 
+TEST(HashTableTest, ResizeTest) {
+  auto *disk_manager = new DiskManager("test.db");
+  auto *bpm = new BufferPoolManager(50, disk_manager);
+
+  LinearProbeHashTable<int, int, IntComparator> ht("blah", bpm, IntComparator(), 1, HashFunction<int>());
+
+  // check resize
+  for (int i = 0; i < 2000; i++) {
+    ht.Insert(nullptr, i, i);
+    std::vector<int> res;
+    ht.GetValue(nullptr, i, &res);
+    EXPECT_EQ(1, res.size()) << "Failed to insert " << i << std::endl;
+    EXPECT_EQ(i, res[0]);
+  }
+
+  // check if the inserted values are all there
+  for (int i = 0; i < 2000; i++) {
+    std::vector<int> res;
+    ht.GetValue(nullptr, i, &res);
+    EXPECT_EQ(1, res.size()) << "Failed to keep " << i << std::endl;
+    EXPECT_EQ(i, res[0]);
+  }
+
+  disk_manager->ShutDown();
+  remove("test.db");
+  delete disk_manager;
+  delete bpm;
+}
+
+static unsigned int count;
+pthread_mutex_t lock;
+
+void *count_v(void *v) {
+  auto *ht = reinterpret_cast<LinearProbeHashTable<int, int, IntComparator> *>(v);
+  pthread_mutex_lock(&lock);
+  int base_v = rand_r(&count);
+  count++;
+  pthread_mutex_unlock(&lock);
+  for (int i = 0; i < 200; i++) {
+    EXPECT_TRUE(ht->Insert(nullptr, i + base_v, i));
+
+    std::vector<int> res;
+    ht->GetValue(nullptr, i + base_v, &res);
+    EXPECT_EQ(1, res.size()) << "Failed to keep " << std::endl;
+    EXPECT_EQ(i, res[0]);
+  }
+
+  for (int i = 0; i < 200; i++) {
+    std::vector<int> res;
+    ht->GetValue(nullptr, i + base_v, &res);
+    EXPECT_EQ(1, res.size()) << "Failed to keep " << i << std::endl;
+    EXPECT_EQ(i, res[0]);
+
+    EXPECT_TRUE(ht->Remove(nullptr, i + base_v, i));
+  }
+  return nullptr;
+}
+
+TEST(HashTableTest, ConcurrentTest) {
+  auto *disk_manager = new DiskManager("test.db");
+  auto *bpm = new BufferPoolManager(50, disk_manager);
+
+  LinearProbeHashTable<int, int, IntComparator> ht("blah", bpm, IntComparator(), 1, HashFunction<int>());
+
+  int tid_len = 10;
+  pthread_t tid[tid_len];
+  for (int i = 0; i < tid_len; i++) {
+    pthread_create(&tid[i], nullptr, count_v, reinterpret_cast<void *>(&ht));
+  }
+
+  for (int i = 0; i < tid_len; i++) {
+    pthread_join(tid[i], nullptr);
+  }
+
+  disk_manager->ShutDown();
+  remove("test.db");
+  delete disk_manager;
+  delete bpm;
+}
 }  // namespace bustub

@@ -77,11 +77,12 @@ class SimpleHashJoinHashTable {
 };
 
 // TODO(student): when you are ready to attempt task 3, replace the using declaration!
-using HT = SimpleHashJoinHashTable;
+// using HT = SimpleHashJoinHashTable;
 
-// using HashJoinKeyType = ???;
-// using HashJoinValType = ???;
-// using HT = LinearProbeHashTable<HashJoinKeyType, HashJoinValType, HashComparator>;
+using HashJoinKeyType = hash_t;
+using HashJoinValType = TmpTuple;
+using HT = LinearProbeHashTable<HashJoinKeyType, HashJoinValType, HashComparator>;
+
 
 /**
  * HashJoinExecutor executes hash join operations.
@@ -99,7 +100,7 @@ class HashJoinExecutor : public AbstractExecutor {
                    std::unique_ptr<AbstractExecutor> &&right);
 
   /** @return the JHT in use. Do not modify this function, otherwise you will get a zero. */
-  // Uncomment me! const HT *GetJHT() const { return &jht_; }
+  const HT *GetJHT() const { return &jht_; }
 
   const Schema *GetOutputSchema() override { return plan_->OutputSchema(); }
 
@@ -138,8 +139,18 @@ class HashJoinExecutor : public AbstractExecutor {
   IdentityHashFunction jht_hash_fn_{};
 
   /** The hash table that we are using. */
-  // Uncomment me! HT jht_;
+  HT jht_;
   /** The number of buckets in the hash table. */
   static constexpr uint32_t jht_num_buckets_ = 2;
+
+  bool init_;
+  hash_t htk_;
+  uint32_t htk_idx_;
+  Tuple right_tuple_;
+
+  std::unique_ptr<AbstractExecutor> left_;
+  std::unique_ptr<AbstractExecutor> right_;
+
+  bool iter_to_next_key();
 };
 }  // namespace bustub
