@@ -28,16 +28,12 @@ std::future<void> LogManager::SyncFlush(bool wait_until_flush, Page *flush_page)
 
     // wait for swap notify
     std::unique_lock<std::mutex> lk(latch_);
-    std::cout << "wait for swap notify" << std::endl;
     cv_.wait(lk, [&]() {return swap_done_ == true;});
-    std::cout << "wait swap done" << std::endl;
 
     std::future<void> future = promise_->get_future();
 
     if (wait_until_flush) {
-        std::cout << "wait for future notify" << std::endl;
         future.wait();
-        std::cout << "wait future done" << std::endl;
     }
     return future;
 }
@@ -63,26 +59,27 @@ void LogManager::RunFlushThread() {
             // swap log buffer with flush buffer
             char *tmp;
             lsn_t tmp_lsn;
+            int32_t tmp_offset;
 
             {
                 std::lock_guard<std::mutex> lk(latch_);
                 tmp = log_buffer_;
                 log_buffer_ = flush_buffer_;
                 flush_buffer_ = tmp;
+
                 tmp_lsn = next_lsn_ - 1;
+                tmp_offset = offset_;
+                offset_ = 0;
                 swap_done_ = true;
             }
             // swap done, notify other thread
             cv_.notify_one();
-            std::cout << "thread swap done" << std::endl;
 
             // flush log data to disk_manager
-            disk_manager_->WriteLog(flush_buffer_, offset_);
+            disk_manager_->WriteLog(flush_buffer_, tmp_offset);
             SetPersistentLSN(tmp_lsn);
-            offset_ = 0;
             promise_->set_value();
             future_done_ = true;
-            std::cout << "thread flush done" << std::endl;
         }
     });
 }

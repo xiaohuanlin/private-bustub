@@ -255,7 +255,6 @@ void TablePage::RollbackDelete(const RID &rid, Transaction *txn, LogManager *log
   }
 
   uint32_t slot_num = rid.GetSlotNum();
-  std::cout << "rid page: " << rid.GetPageId() << " slot_num: " << slot_num << " tuple_count: " << GetTupleCount() << std::endl;
   BUSTUB_ASSERT(slot_num < GetTupleCount(), "We can't have more slots than tuples.");
   uint32_t tuple_size = GetTupleSize(slot_num);
 

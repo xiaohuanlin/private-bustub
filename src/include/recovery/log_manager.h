@@ -41,12 +41,9 @@ class LogManager {
     delete[] flush_buffer_;
     log_buffer_ = nullptr;
     flush_buffer_ = nullptr;
-    // if (promise_) {
-    //   std::cout << "free promise_" << std::endl;
-    //   delete promise_;
-    //   promise_ = nullptr;
-    //   std::cout << "free promise_ ok" << std::endl;
-    // }
+    if (promise_) {
+      delete promise_;
+    }
   }
 
   void RunFlushThread();

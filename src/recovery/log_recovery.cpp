@@ -54,19 +54,19 @@ bool LogRecovery::DeserializeLogRecord(const char *data, LogRecord *log_record) 
         case LogRecordType::APPLYDELETE:
         case LogRecordType::ROLLBACKDELETE: {
             RID tuple_id = *static_cast<RID*>((void *)record_ptr);
-            Tuple *tuple = new Tuple();
-            tuple->DeserializeFrom(record_ptr + sizeof(RID));
-            *log_record = LogRecord(txn_id, prev_lsn, record_type, tuple_id, *tuple);
+            Tuple tuple;
+            tuple.DeserializeFrom(record_ptr + sizeof(RID));
+            *log_record = LogRecord(txn_id, prev_lsn, record_type, tuple_id, tuple);
             break;
         }
         case LogRecordType::UPDATE: {
             RID tuple_id = *static_cast<RID*>((void *)record_ptr);
-            Tuple *old_tuple = new Tuple();
-            old_tuple->DeserializeFrom(record_ptr + sizeof(RID));
+            Tuple old_tuple;
+            old_tuple.DeserializeFrom(record_ptr + sizeof(RID));
 
-            Tuple *new_tuple = new Tuple();
-            new_tuple->DeserializeFrom(record_ptr + sizeof(RID) + sizeof(uint32_t) + old_tuple->GetLength());
-            *log_record = LogRecord(txn_id, prev_lsn, record_type, tuple_id, *old_tuple, *new_tuple);
+            Tuple new_tuple;
+            new_tuple.DeserializeFrom(record_ptr + sizeof(RID) + sizeof(uint32_t) + old_tuple.GetLength());
+            *log_record = LogRecord(txn_id, prev_lsn, record_type, tuple_id, old_tuple, new_tuple);
             break;
         }
         case LogRecordType::NEWPAGE: {
@@ -94,7 +94,6 @@ void LogRecovery::Redo() {
         LogRecord log_record;
         while (DeserializeLogRecord(log_buffer_, &log_record)) {
             txn_id_t txn_id = log_record.GetTxnId();
-            std::cout << "redo: " << log_record.ToString() << std::endl;
 
             switch (log_record.GetLogRecordType()) {
                 case LogRecordType::BEGIN:
@@ -190,7 +189,6 @@ void LogRecovery::Undo() {
                 // we can't undo more log
                 break;
             }
-            std::cout << "undo: " << log_record.ToString() << std::endl;
 
             switch (log_record.GetLogRecordType()) {
                 case LogRecordType::BEGIN:
