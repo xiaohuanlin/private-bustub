@@ -83,7 +83,6 @@ using HashJoinKeyType = hash_t;
 using HashJoinValType = TmpTuple;
 using HT = LinearProbeHashTable<HashJoinKeyType, HashJoinValType, HashComparator>;
 
-
 /**
  * HashJoinExecutor executes hash join operations.
  */

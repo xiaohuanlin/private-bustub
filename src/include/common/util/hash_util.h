@@ -42,7 +42,7 @@ class HashUtil {
     hash_t both[2];
     both[0] = l;
     both[1] = r;
-    return HashBytes(reinterpret_cast<char *>(both), sizeof(hash_t) * 2);
+    return HashBytes(reinterpret_cast<char *>(both), sizeof(both));
   }
 
   static inline hash_t SumHashes(hash_t l, hash_t r) { return (l % prime_factor + r % prime_factor) % prime_factor; }

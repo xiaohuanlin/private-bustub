@@ -222,20 +222,22 @@ TEST(RecoveryTest, MultiTransactionTest) {
   Transaction *txn2 = bustub_instance->transaction_manager_->Begin();
   Transaction *txn3 = bustub_instance->transaction_manager_->Begin();
   auto *test_table1 = new TableHeap(bustub_instance->buffer_pool_manager_, bustub_instance->lock_manager_,
-                                   bustub_instance->log_manager_, txn1);
+                                    bustub_instance->log_manager_, txn1);
   page_id_t first_page_id1 = test_table1->GetFirstPageId();
   auto *test_table2 = new TableHeap(bustub_instance->buffer_pool_manager_, bustub_instance->lock_manager_,
-                                   bustub_instance->log_manager_, txn2);
+                                    bustub_instance->log_manager_, txn2);
   page_id_t first_page_id2 = test_table2->GetFirstPageId();
   auto *test_table3 = new TableHeap(bustub_instance->buffer_pool_manager_, bustub_instance->lock_manager_,
-                                   bustub_instance->log_manager_, txn3);
+                                    bustub_instance->log_manager_, txn3);
   page_id_t first_page_id3 = test_table3->GetFirstPageId();
 
   Column col1{"a", TypeId::VARCHAR, 20};
   Column col2{"b", TypeId::SMALLINT};
   std::vector<Column> cols{col1, col2};
   Schema schema{cols};
-  RID rid1, rid2, rid3;
+  RID rid1;
+  RID rid2;
+  RID rid3;
   const Tuple tuple1 = ConstructTuple(&schema);
   const Tuple tuple2 = ConstructTuple(&schema);
   const Tuple tuple3 = ConstructTuple(&schema);
@@ -294,11 +296,11 @@ TEST(RecoveryTest, MultiTransactionTest) {
   LOG_INFO("Check if txns are all right");
   Transaction *txn = bustub_instance->transaction_manager_->Begin();
   test_table1 = new TableHeap(bustub_instance->buffer_pool_manager_, bustub_instance->lock_manager_,
-                                   bustub_instance->log_manager_, first_page_id1);
+                              bustub_instance->log_manager_, first_page_id1);
   test_table2 = new TableHeap(bustub_instance->buffer_pool_manager_, bustub_instance->lock_manager_,
-                                   bustub_instance->log_manager_, first_page_id2);
+                              bustub_instance->log_manager_, first_page_id2);
   test_table3 = new TableHeap(bustub_instance->buffer_pool_manager_, bustub_instance->lock_manager_,
-                                   bustub_instance->log_manager_, first_page_id3);
+                              bustub_instance->log_manager_, first_page_id3);
   Tuple tmp_tuple;
   // t1 no inserted row
   ASSERT_FALSE(test_table1->GetTuple(rid1, &tmp_tuple, txn));

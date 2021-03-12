@@ -47,12 +47,11 @@ TEST(CatalogTest, CreateTableTest) {
   delete disk_manager;
 }
 
-
 static unsigned int count;
 pthread_mutex_t lock;
 
-void *create(void* v) {
-  auto catalog = reinterpret_cast<SimpleCatalog*>(v);
+void *create(void *v) {
+  auto catalog = reinterpret_cast<SimpleCatalog *>(v);
   pthread_mutex_lock(&lock);
   std::string table_name = std::to_string(count++);
   pthread_mutex_unlock(&lock);
@@ -69,7 +68,6 @@ void *create(void* v) {
 
   return nullptr;
 }
-
 
 TEST(CatalogTest, ConcurrentTest) {
   auto disk_manager = new DiskManager("catalog_test.db");

@@ -41,9 +41,7 @@ class LogManager {
     delete[] flush_buffer_;
     log_buffer_ = nullptr;
     flush_buffer_ = nullptr;
-    if (promise_) {
-      delete promise_;
-    }
+    delete promise_;
   }
 
   void RunFlushThread();

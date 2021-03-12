@@ -58,8 +58,8 @@ class SimpleCatalog {
     table_oid_t table_oid = next_table_oid_++;
     names_[table_name] = table_oid;
 
-    auto item = new TableMetadata(schema, table_name, 
-                    std::unique_ptr<TableHeap>(new TableHeap(bpm_, lock_manager_, log_manager_, txn)), table_oid);
+    auto item = new TableMetadata(schema, table_name,
+                                  std::make_unique<TableHeap>(bpm_, lock_manager_, log_manager_, txn), table_oid);
     tables_[table_oid] = std::unique_ptr<TableMetadata>(item);
 
     catalog_latch_.WUnlock();
@@ -83,7 +83,7 @@ class SimpleCatalog {
     catalog_latch_.RLock();
     auto table_iter = tables_.find(table_oid);
     catalog_latch_.RUnlock();
-    return table_iter == tables_.end() ? nullptr: (table_iter->second).get();
+    return table_iter == tables_.end() ? nullptr : (table_iter->second).get();
   }
 
  private:
