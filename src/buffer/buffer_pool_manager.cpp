@@ -102,7 +102,17 @@ bool BufferPoolManager::FlushPageImpl(page_id_t page_id) {
   std::unordered_map<page_id_t, frame_id_t>::iterator frame_iter;
   if ((frame_iter = page_table_.find(page_id)) != page_table_.end()) {
     frame_id = frame_iter->second;
+    std::future<void> future;
+    if (enable_logging) {
+      future = log_manager_->SyncFlush(false, &pages_[frame_id]);
+      disk_manager_->SetFlushLogFuture(&future);
+    }
     disk_manager_->WritePage(page_id, pages_[frame_id].GetData());
+    if (disk_manager_->HasFlushLogFuture()) {
+      disk_manager_->SetFlushLogFuture(nullptr);
+    }
+    // page is not dirty yet
+    pages_[frame_id].is_dirty_ = false;
     return true;
   }
   return false;
@@ -179,7 +189,6 @@ bool BufferPoolManager::DeletePageImpl(page_id_t page_id) {
 
 void BufferPoolManager::FlushAllPagesImpl() {
   // You can do it!
-  std::lock_guard<std::mutex> lg(latch_);
   for (auto &item : page_table_) {
     FlushPage(item.first);
   }

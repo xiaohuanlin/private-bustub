@@ -13,6 +13,30 @@
 #include "recovery/log_manager.h"
 
 namespace bustub {
+
+std::future<void> LogManager::SyncFlush(bool wait_until_flush, Page *flush_page) {
+  if (promise_ != nullptr) {
+    while (!future_done_) {
+    }
+    delete promise_;
+    promise_ = nullptr;
+  }
+  future_done_ = false;
+  swap_done_ = false;
+  promise_ = new std::promise<void>();
+
+  // wait for swap notify
+  std::unique_lock<std::mutex> lk(latch_);
+  cv_.wait(lk, [&]() { return static_cast<bool>(swap_done_); });
+
+  std::future<void> future = promise_->get_future();
+
+  if (wait_until_flush) {
+    future.wait();
+  }
+  return future;
+}
+
 /*
  * set enable_logging = true
  * Start a separate thread to execute flush to disk operation periodically
@@ -22,12 +46,52 @@ namespace bustub {
  *
  * This thread runs forever until system shutdown/StopFlushThread
  */
-void LogManager::RunFlushThread() {}
+void LogManager::RunFlushThread() {
+  enable_logging = true;
+
+  flush_thread_ = new std::thread([&]() {
+    while (thread_run_forever_) {
+      if (promise_ == nullptr || future_done_) {
+        continue;
+      }
+
+      // swap log buffer with flush buffer
+      char *tmp;
+      lsn_t tmp_lsn;
+      int32_t tmp_offset;
+
+      {
+        std::lock_guard<std::mutex> lk(latch_);
+        tmp = log_buffer_;
+        log_buffer_ = flush_buffer_;
+        flush_buffer_ = tmp;
+
+        tmp_lsn = next_lsn_ - 1;
+        tmp_offset = offset_;
+        offset_ = 0;
+        swap_done_ = true;
+      }
+      // swap done, notify other thread
+      cv_.notify_one();
+
+      // flush log data to disk_manager
+      disk_manager_->WriteLog(flush_buffer_, tmp_offset);
+      SetPersistentLSN(tmp_lsn);
+      promise_->set_value();
+      future_done_ = true;
+    }
+  });
+}
 
 /*
  * Stop and join the flush thread, set enable_logging = false
  */
-void LogManager::StopFlushThread() {}
+void LogManager::StopFlushThread() {
+  thread_run_forever_ = false;
+  enable_logging = false;
+  flush_thread_->join();
+  delete flush_thread_;
+}
 
 /*
  * append a log record into log buffer
@@ -49,6 +113,46 @@ void LogManager::StopFlushThread() {}
  *  }
  *
  */
-lsn_t LogManager::AppendLogRecord(LogRecord *log_record) { return INVALID_LSN; }
+lsn_t LogManager::AppendLogRecord(LogRecord *log_record) {
+  if (offset_ + log_record->size_ > LOG_BUFFER_SIZE) {
+    // buffer is not enough
+    SyncFlush();
+  }
+
+  std::lock_guard<std::mutex> lg(latch_);
+  log_record->lsn_ = next_lsn_++;
+  memcpy(log_buffer_ + offset_, &log_record->size_, 4);
+  memcpy(log_buffer_ + offset_ + 4, &log_record->lsn_, 4);
+  memcpy(log_buffer_ + offset_ + 8, &log_record->txn_id_, 4);
+  memcpy(log_buffer_ + offset_ + 12, &log_record->prev_lsn_, 4);
+  memcpy(log_buffer_ + offset_ + 16, &log_record->log_record_type_, 4);
+  uint64_t pos = offset_ + 20;
+
+  if (log_record->log_record_type_ == LogRecordType::INSERT) {
+    memcpy(log_buffer_ + pos, &log_record->insert_rid_, sizeof(RID));
+    pos += sizeof(RID);
+    log_record->insert_tuple_.SerializeTo(log_buffer_ + pos);
+  } else if (log_record->log_record_type_ == LogRecordType::MARKDELETE ||
+             log_record->log_record_type_ == LogRecordType::APPLYDELETE ||
+             log_record->log_record_type_ == LogRecordType::ROLLBACKDELETE) {
+    memcpy(log_buffer_ + pos, &log_record->delete_rid_, sizeof(RID));
+    pos += sizeof(RID);
+    log_record->delete_tuple_.SerializeTo(log_buffer_ + pos);
+  } else if (log_record->log_record_type_ == LogRecordType::UPDATE) {
+    memcpy(log_buffer_ + pos, &log_record->update_rid_, sizeof(RID));
+    pos += sizeof(RID);
+    log_record->old_tuple_.SerializeTo(log_buffer_ + pos);
+    // add old tuple size
+    pos += (sizeof(int32_t) + log_record->old_tuple_.GetLength());
+    log_record->new_tuple_.SerializeTo(log_buffer_ + pos);
+  } else if (log_record->log_record_type_ == LogRecordType::NEWPAGE) {
+    memcpy(log_buffer_ + pos, &log_record->prev_page_id_, sizeof(page_id_t));
+    pos += sizeof(page_id_t);
+    memcpy(log_buffer_ + pos, &log_record->page_id_, sizeof(page_id_t));
+  }
+
+  offset_ += log_record->size_;
+  return log_record->lsn_;
+}
 
 }  // namespace bustub

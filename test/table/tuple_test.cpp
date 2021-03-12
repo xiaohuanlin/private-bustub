@@ -53,14 +53,12 @@ TEST(TupleTest, DISABLED_TableHeapTest) {
 
   TableIterator itr = table->Begin(transaction);
   while (itr != table->End()) {
-    // std::cout << itr->ToString(schema) << std::endl;
     ++itr;
   }
 
   // int i = 0;
   std::shuffle(rid_v.begin(), rid_v.end(), std::default_random_engine(0));
   for (const auto &rid : rid_v) {
-    // std::cout << i++ << std::endl;
     assert(table->MarkDelete(rid, transaction) == 1);
   }
   disk_manager->ShutDown();

@@ -36,12 +36,10 @@ class TmpTuplePage : public Page {
     memcpy(GetData() + OFFSET_FREE_SPACE, &free_space_pointer, sizeof(uint32_t));
   }
 
-  uint32_t GetFreeSpaceRemaining() {
-    return GetFreeSpacePointer();
-  }
+  uint32_t GetFreeSpaceRemaining() { return GetFreeSpacePointer(); }
 
   bool Insert(const Tuple &tuple, TmpTuple *out) {
-    BUSTUB_ASSERT(tuple.GetLength()> 0, "Cannot have empty tuples.");
+    BUSTUB_ASSERT(tuple.GetLength() > 0, "Cannot have empty tuples.");
     // If there is not enough space, then return false.
     size_t tuple_size = tuple.GetLength();
     if (GetFreeSpaceRemaining() < tuple_size + SIZE_TUPLE) {
@@ -84,8 +82,6 @@ class TmpTuplePage : public Page {
   static constexpr size_t SIZE_TABLE_PAGE_HEADER = 12;
   static constexpr size_t SIZE_TUPLE = 4;
   static constexpr size_t OFFSET_FREE_SPACE = 8;
-
-  page_id_t page_id_;
 };
 
 }  // namespace bustub
